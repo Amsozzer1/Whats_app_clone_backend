@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var FB_config = require('./../SECRETS');
 var firebase = require("firebase/compat/app");
-require("firebase/compat/firestore"); 
+// require("firebase/compat/firestore"); 
 var dummyChats = require('../DummyChats');
 
 
