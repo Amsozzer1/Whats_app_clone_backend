@@ -6,6 +6,11 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var crypto = require('crypto');
 var app = express();
+
+const server = require('http').createServer(app);
+const expressWs = require('express-ws')(app, server);
+
+
 const StreamChat = require('stream-chat').StreamChat;
 require('dotenv').config();
 const apiKey = process.env.API_KEY;
@@ -13,7 +18,7 @@ const apiSecret = process.env.API_SECRET;
 
 const serverClient = StreamChat.getInstance(apiKey, apiSecret);
 // Initialize express-ws
-var expressWs = require('express-ws')(app);
+// var expressWs = require('express-ws')(app);
 
 // Store connected users
 const connectedUsers = {};
@@ -243,5 +248,9 @@ app.use(function(err, req, res, next) {
 // app.listen(3006, () => {
 //   console.log(`Server with WebSocket support listening on port 3006`);
 // });
+const PORT = process.env.PORT || 3006;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;
