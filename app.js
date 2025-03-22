@@ -40,7 +40,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
+app.get('/socket-test', (req, res) => {
+  res.send('WebSocket endpoint is configured and server is running');
+});
 // WebSocket endpoint for real-time communication
 app.ws('/socket', function(ws, req) {
   let userId = null;
@@ -237,8 +239,8 @@ app.use(function(err, req, res, next) {
   });
 });
 
-app.listen(3006, () => {
-  console.log(`Server with WebSocket support listening on port 3006`);
-});
+// app.listen(3006, () => {
+//   console.log(`Server with WebSocket support listening on port 3006`);
+// });
 
 module.exports = app;
