@@ -1,30 +1,176 @@
 #!/usr/bin/env node
-
 /**
  * Module dependencies.
  */
-
-var app = require('../app');
+var { app, connectedUsers, serverClient } = require('../app');
 var debug = require('debug')('video-streaming-backend:server');
 var http = require('http');
 
 /**
  * Get port from environment and store in Express.
  */
-
-var port = normalizePort(process.env.PORT || '3000');
+var port = normalizePort(process.env.PORT || '3006');
 app.set('port', port);
 
 /**
  * Create HTTP server.
  */
-
 var server = http.createServer(app);
+
+/**
+ * Set up WebSockets with the server
+ */
+const expressWs = require('express-ws')(app, server);
+console.log('WebSocket initialized:', !!expressWs);
+
+/**
+ * Set up WebSocket route
+ */
+app.ws('/socket', function(ws, req) {
+  let userId = null;
+  
+  console.log('Client connected to WebSocket');
+  
+  ws.on('message', function(msg) {
+    try {
+      const data = JSON.parse(msg);
+      console.log('WebSocket message received:', data);
+      
+      // Handle user registration
+      if (data.type === 'register') {
+        userId = data.userId;
+        connectedUsers[userId] = ws;
+        console.log(`User ${userId} registered with WebSocket`);
+        const token = serverClient.createToken(userId);
+        // Confirm registration to client
+        ws.send(JSON.stringify({ 
+          type: 'registered', 
+          success: true,
+          token: token
+        }));
+      }
+      // Your other message handling logic...
+      else if (data.type === 'call_canceled') {
+        // Existing code...
+        console.log('Handling call_canceled message');
+        console.log('Looking for receiver:', data.receiverId);
+        console.log('Current connected users:', Object.keys(connectedUsers));
+        
+        const receiverWs = connectedUsers[data.receiverId];
+        if (receiverWs) {
+          console.log('Found receiver, forwarding message');
+          try {
+            receiverWs.send(JSON.stringify(data));
+            console.log('Message forwarded successfully');
+          } catch (error) {
+            console.error('Error forwarding message:', error);
+          }
+        } else {
+          console.log('Receiver not found in connected users');
+        }
+      }
+      else if (data.type === 'call_request') {
+        // Existing code...
+        const { receiverId, callerId, callerName } = data;
+        const receiverWs = connectedUsers[receiverId];
+        if (receiverWs) {
+          receiverWs.send(JSON.stringify({
+            type: 'incoming_call',
+            callerId,
+            callerName
+          }));
+          
+          ws.send(JSON.stringify({
+            type: 'call_status',
+            status: 'ringing',
+            receiverId,
+          }));
+          
+          console.log(`Call request sent from ${callerId} to ${receiverId}`);
+        } else {
+          ws.send(JSON.stringify({
+            type: 'call_status',
+            status: 'unavailable',
+            receiverId
+          }));
+          
+          console.log(`Receiver ${receiverId} not connected`);
+        }
+      }
+      else if (data.type === 'call_response') {
+        // Existing code...
+        const { callerId, response } = data;
+        const receiverWs = connectedUsers[data.callerId];
+        
+        if(receiverWs){
+          if (response==='accepted') {
+            receiverWs.send(JSON.stringify({
+              type: 'call_info',
+              callID: data.callID,
+            }));
+            
+            console.log(`Call ${response} by ${userId} to ${callerId}`);
+          }
+          else{
+            receiverWs.send(JSON.stringify({
+              type: 'call_response',
+              callerId,
+              status:'declined',
+            }));
+          }
+        }
+      }
+      else if(data.type == "message_sent"){
+        // Existing code...
+        const receiverWs = connectedUsers[data.receiver];
+        let newMessage = data.message;
+        newMessage.isUser=false;
+        if(receiverWs){
+          receiverWs.send(JSON.stringify({
+            type:"message_sent",
+            message:newMessage,
+            sender: data.sender,
+            receiver:data.receiver
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Error handling WebSocket message:', e);
+    }
+  });
+  
+  // Handle disconnection
+  ws.on('close', function() {
+    if (userId) {
+      console.log(`User ${userId} disconnected from WebSocket`);
+      delete connectedUsers[userId];
+    }
+  });
+});
+
+// Add the test message route
+app.get('/test-message/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const receiverWs = connectedUsers[userId];
+  
+  if (receiverWs) {
+    try {
+      receiverWs.send(JSON.stringify({
+        type: 'test_message',
+        message: 'This is a test message'
+      }));
+      res.send('Test message sent to ' + userId);
+    } catch (error) {
+      res.status(500).send('Error sending message: ' + error.message);
+    }
+  } else {
+    res.status(404).send('User not found in connected users');
+  }
+});
 
 /**
  * Listen on provided port, on all network interfaces.
  */
-
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
@@ -32,36 +178,29 @@ server.on('listening', onListening);
 /**
  * Normalize a port into a number, string, or false.
  */
-
 function normalizePort(val) {
   var port = parseInt(val, 10);
-
   if (isNaN(port)) {
     // named pipe
     return val;
   }
-
   if (port >= 0) {
     // port number
     return port;
   }
-
   return false;
 }
 
 /**
  * Event listener for HTTP server "error" event.
  */
-
 function onError(error) {
   if (error.syscall !== 'listen') {
     throw error;
   }
-
   var bind = typeof port === 'string'
     ? 'Pipe ' + port
     : 'Port ' + port;
-
   // handle specific listen errors with friendly messages
   switch (error.code) {
     case 'EACCES':
@@ -80,7 +219,6 @@ function onError(error) {
 /**
  * Event listener for HTTP server "listening" event.
  */
-
 function onListening() {
   var addr = server.address();
   var bind = typeof addr === 'string'
