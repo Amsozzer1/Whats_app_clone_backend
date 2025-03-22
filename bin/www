@@ -69,6 +69,38 @@ app.ws('/socket', function(ws, req) {
     console.error('WebSocket error:', error);
   });
   
+  // ws.on('message', function(msg) {
+  //   try {
+  //     const data = JSON.parse(msg);
+  //     console.log('WebSocket message received:', data);
+      
+  //     // Handle user registration
+  //     if (data.type === 'register') {
+  //       userId = data.userId;
+  //       connectedUsers[userId] = ws;
+  //       console.log(`User ${userId} registered with WebSocket`);
+  //       const token = serverClient.createToken(userId);
+  //       ws.send(JSON.stringify({ 
+  //         type: 'registered', 
+  //         success: true,
+  //         token: token
+  //       }));
+  //     }
+  //     // Your other message handlers here...
+  //     else if (data.type === 'call_canceled') {
+  //       // existing code
+  //     }
+  //     else if (data.type === 'call_request') {
+  //       // existing code
+  //     }
+  //     // etc...
+      
+  //   } catch (e) {
+  //     console.error('Error handling WebSocket message:', e);
+  //   }
+  // });
+  
+  // Handle disconnection
   ws.on('message', function(msg) {
     try {
       const data = JSON.parse(msg);
@@ -79,28 +111,117 @@ app.ws('/socket', function(ws, req) {
         userId = data.userId;
         connectedUsers[userId] = ws;
         console.log(`User ${userId} registered with WebSocket`);
+        // const userId = data.userId;
         const token = serverClient.createToken(userId);
+        // Confirm registration to client
         ws.send(JSON.stringify({ 
           type: 'registered', 
           success: true,
-          token: token
+          token:token
+
         }));
       }
-      // Your other message handlers here...
       else if (data.type === 'call_canceled') {
-        // existing code
+        console.log('Handling call_canceled message');
+        console.log('Looking for receiver:', data.receiverId);
+        console.log('Current connected users:', Object.keys(connectedUsers));
+        
+        const receiverWs = connectedUsers[data.receiverId];
+        if (receiverWs) {
+          console.log('Found receiver, forwarding message');
+          try {
+            receiverWs.send(JSON.stringify(data));
+            console.log('Message forwarded successfully');
+          } catch (error) {
+            console.error('Error forwarding message:', error);
+          }
+        } else {
+          console.log('Receiver not found in connected users');
+        }
       }
+      // Handle call requests
       else if (data.type === 'call_request') {
-        // existing code
+        const { receiverId, callerId, callerName } = data;
+        const receiverWs = connectedUsers[receiverId];
+        // const userId = data.callerId;
+        // const token = serverClient.createToken(userId);
+        if (receiverWs) {
+          // Send notification to receiver
+          receiverWs.send(JSON.stringify({
+            type: 'incoming_call',
+            callerId,
+            callerName
+          }));
+          
+          // Notify caller that request was sent
+          ws.send(JSON.stringify({
+            type: 'call_status',
+            status: 'ringing',
+            receiverId,
+            // token:token
+          }));
+          
+          console.log(`Call request sent from ${callerId} to ${receiverId}`);
+        } else {
+          // Receiver not connected
+          ws.send(JSON.stringify({
+            type: 'call_status',
+            status: 'unavailable',
+            receiverId
+          }));
+          
+          console.log(`Receiver ${receiverId} not connected`);
+        }
       }
-      // etc...
+      
+      // Handle call responses (accept/decline)
+      else if (data.type === 'call_response') {
+        const { callerId, response } = data;
+        // const callerWs = connectedUsers[callerId];
+        const receiverWs = connectedUsers[data.callerId];
+        
+        if(receiverWs){
+          if (response==='accepted') {
+            // const userId = data.userID;
+            // const token = serverClient.createToken(userId);
+            receiverWs.send(JSON.stringify({
+              type: 'call_info',
+              callID: data.callID,
+              // token:token
+            }));
+            
+            console.log(`Call ${response} by ${userId} to ${callerId}`);
+          }
+          else{
+            // console.log("WS: ",ws);
+            receiverWs.send(JSON.stringify({
+              type: 'call_response',
+              callerId,
+              status:'declined',
+              // weird: "I SHOULD BE HERE"
+            }))
+          }
+        }
+      }
+      else if(data.type == "message_sent"){
+        const receiverWs = connectedUsers[data.receiver];
+        let newMessage = data.message;
+        newMessage.isUser=false
+        if(receiverWs){
+          receiverWs.send(JSON.stringify({
+            type:"message_sent",
+            message:newMessage,
+            sender: data.sender,
+            receiver:data.receiver
+          }))
+      }
+    }
+      
       
     } catch (e) {
       console.error('Error handling WebSocket message:', e);
     }
   });
-  
-  // Handle disconnection
   ws.on('close', function() {
     if (userId) {
       console.log(`User ${userId} disconnected from WebSocket`);
