@@ -88,6 +88,6 @@ async function clearChatFieldInAllDocuments(req, res) {
 }
 
 // Define the route for clearing chat field
-router.put('/', clearChatFieldInAllDocuments);
+router.delete('/', clearChatFieldInAllDocuments);
 
 module.exports = router;
