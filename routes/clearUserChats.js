@@ -15,7 +15,7 @@ function initFirebase() {
 
 const firestoreDb = initFirebase();
 
-async function deleteAllDocumentsInCollection(req, res) {
+async function clearChatFieldInAllDocuments(req, res) {
   // Get collection name from request
   const collectionName = req.query.collection || req.body.collection;
   
@@ -40,43 +40,44 @@ async function deleteAllDocumentsInCollection(req, res) {
       });
     }
     
-    // Count documents to delete
+    // Count documents to update
     const docCount = snapshot.size;
     
-    // Create a batch to perform multiple deletes
+    // Create a batch to perform multiple updates
     const batchSize = 500; // Firestore batch limit is 500 operations
-    let totalDeleted = 0;
+    let totalUpdated = 0;
     
-    // Process deletion in batches
-    const deletePromises = [];
+    // Process updates in batches
+    const updatePromises = [];
     let batch = db.batch();
     let operationCount = 0;
     
     snapshot.forEach(doc => {
-      batch.delete(doc.ref);
+      // Update the document to set chat field to empty array
+      batch.update(doc.ref, { chat: [] });
       operationCount++;
       
       // If we reach batch size limit, commit and create a new batch
       if (operationCount >= batchSize) {
-        deletePromises.push(batch.commit());
+        updatePromises.push(batch.commit());
         batch = db.batch();
-        totalDeleted += operationCount;
+        totalUpdated += operationCount;
         operationCount = 0;
       }
     });
     
     // Commit any remaining operations
     if (operationCount > 0) {
-      deletePromises.push(batch.commit());
-      totalDeleted += operationCount;
+      updatePromises.push(batch.commit());
+      totalUpdated += operationCount;
     }
     
     // Wait for all batch operations to complete
-    await Promise.all(deletePromises);
+    await Promise.all(updatePromises);
     
     res.send({
       success: true,
-      message: `Successfully deleted ${totalDeleted} documents from collection '${collectionName}'`
+      message: `Successfully updated chat field to empty array in ${totalUpdated} documents from collection '${collectionName}'`
     });
   } catch (error) {
     res.status(500).send({
@@ -86,7 +87,7 @@ async function deleteAllDocumentsInCollection(req, res) {
   }
 }
 
-// Define the route for deleting all documents
-router.delete('/', deleteAllDocumentsInCollection);
+// Define the route for clearing chat field
+router.put('/', clearChatFieldInAllDocuments);
 
 module.exports = router;
