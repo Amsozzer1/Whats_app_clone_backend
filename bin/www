@@ -239,6 +239,8 @@ var sendText = require('../routes/sendText');
 var addUser = require('../routes/addUser');
 var allUsers = require('../routes/getAllUsers');
 var getUser = require('../routes/getUser');
+var clearChats = require('../routes/clearUserChats');
+var deleteUser = require('../routes/deleteUser')
 
 // Register routes
 app.use('/', indexRouter);
@@ -249,7 +251,8 @@ app.use('/sendText', sendText);
 app.use('/addUser', addUser);
 app.use('/allUsers', allUsers);
 app.use('/getUser', getUser);
-
+app.use('/clearChats',clearChats);
+app.use('/deleteUser',deleteUser);
 // Test message route
 app.get('/test-message/:userId', (req, res) => {
   // existing code
