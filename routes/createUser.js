@@ -7,7 +7,7 @@ require("firebase/compat/firestore");
 var dummyChats = require('../DummyChats');
 
 
-var dummy_users = ["gD0Urk0aoQQUc9xzC1R7f7rHxKB3","4NIcVjLMO6gOhtC2sTnL9zYTPQI3","qSE5wMxZSyeO4HyiFN0MH0SSWmm1"];
+var dummy_users = ["WHZ5HjPQZPffbiaszXGk2klUkrA3","G0vQ0uA8XtaIct5WkEGAkjTDgnR2","zdpXED21QfZjMXtIKsdcG8wAGxL2"];
 let db;
 function initFirebase() {
 if (!firebase.apps.length) {
