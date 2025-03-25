@@ -69,38 +69,6 @@ app.ws('/socket', function(ws, req) {
     console.error('WebSocket error:', error);
   });
   
-  // ws.on('message', function(msg) {
-  //   try {
-  //     const data = JSON.parse(msg);
-  //     console.log('WebSocket message received:', data);
-      
-  //     // Handle user registration
-  //     if (data.type === 'register') {
-  //       userId = data.userId;
-  //       connectedUsers[userId] = ws;
-  //       console.log(`User ${userId} registered with WebSocket`);
-  //       const token = serverClient.createToken(userId);
-  //       ws.send(JSON.stringify({ 
-  //         type: 'registered', 
-  //         success: true,
-  //         token: token
-  //       }));
-  //     }
-  //     // Your other message handlers here...
-  //     else if (data.type === 'call_canceled') {
-  //       // existing code
-  //     }
-  //     else if (data.type === 'call_request') {
-  //       // existing code
-  //     }
-  //     // etc...
-      
-  //   } catch (e) {
-  //     console.error('Error handling WebSocket message:', e);
-  //   }
-  // });
-  
-  // Handle disconnection
   ws.on('message', function(msg) {
     try {
       const data = JSON.parse(msg);
@@ -204,10 +172,11 @@ app.ws('/socket', function(ws, req) {
         }
       }
       else if(data.type == "message_sent"){
-        const receiverWs = connectedUsers[data.sender];
+        const receiverWs = connectedUsers[data.receiver];
         let newMessage = data.message;
         newMessage.isUser=false
         if(receiverWs){
+          // console.log(receiverWs);
           receiverWs.send(JSON.stringify({
             type:"message_sent",
             message:newMessage,

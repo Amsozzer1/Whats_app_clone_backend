@@ -41,7 +41,7 @@ async function getUser(req, res) {
     const userRecord = await admin.auth().getUser(userId);
     res.send(userRecord.toJSON());
   } catch (error) {
-    console.error("Firebase operation failed:", error);
+    // console.error("Firebase operation failed:", error);
     // Return appropriate error codes
     if (error.code === 'auth/user-not-found') {
       return res.status(404).send("User not found");
